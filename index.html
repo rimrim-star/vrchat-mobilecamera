@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>VRHand — Teléfono</title>
+<title>VRHand — Pose Tracker</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root {
@@ -17,486 +17,524 @@
   --muted: #475569;
   --panel: rgba(13,20,34,0.92);
 }
-body { background:#000; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); touch-action:none; }
-
-/* ── VR stereo view ── */
-#vr-layer {
-  position:fixed; inset:0;
-  display:flex;
-  background:#000;
-}
-.eye {
-  flex:1;
-  position:relative;
-  overflow:hidden;
-}
-.eye-canvas {
-  position:absolute; inset:0;
-  width:100%; height:100%;
-}
-.divider {
-  width:3px;
-  background:#111;
-  flex-shrink:0;
+body {
+  background: var(--bg);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  overflow: hidden;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ── Camera (hidden, used for ML) ── */
-#video {
-  position:fixed;
-  width:1px; height:1px;
-  opacity:0; pointer-events:none;
-}
-#track-canvas {
-  position:fixed;
-  width:1px; height:1px;
-  opacity:0; pointer-events:none;
-}
-
-/* ── HUD overlay ── */
-#hud {
-  position:fixed; inset:0;
-  pointer-events:none;
-  z-index:50;
-}
-
-/* Connection bar */
-#conn-bar {
-  position:absolute;
-  top:0; left:0; right:0;
-  height:36px;
-  background:rgba(5,8,15,0.85);
-  border-bottom:1px solid #1e293b;
-  display:flex;
-  align-items:center;
-  padding:0 12px;
-  gap:8px;
-  pointer-events:all;
-}
-.dot { width:7px;height:7px;border-radius:50%;background:var(--muted); }
-.dot.ok  { background:var(--ok);  box-shadow:0 0 6px var(--ok); }
-.dot.err { background:var(--err); box-shadow:0 0 6px var(--err); }
-.dot.warn{ background:var(--warn);box-shadow:0 0 6px var(--warn); }
-#conn-label { font-size:11px; color:var(--muted); flex:1; }
-
-#ip-input {
-  background:rgba(30,41,59,0.8);
-  border:1px solid #334155;
-  border-radius:5px;
-  color:var(--text);
-  font-size:12px;
-  padding:3px 8px;
-  width:130px;
-  pointer-events:all;
-}
-#conn-btn {
-  background:var(--accent);
-  border:none; border-radius:5px;
-  color:#fff; font-size:11px; font-weight:600;
-  padding:4px 10px; cursor:pointer;
-  pointer-events:all;
-}
-
-/* Gesture badges */
-#gesture-hud {
-  position:absolute;
-  bottom:20px; left:0; right:0;
-  display:flex;
-  justify-content:space-between;
-  padding:0 16px;
-}
-.gesture-badge {
-  background:var(--panel);
-  border:1px solid #1e293b;
-  border-radius:10px;
-  padding:8px 14px;
-  text-align:center;
-  min-width:90px;
-  backdrop-filter:blur(8px);
-}
-.gesture-badge .label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
-.gesture-badge .value { font-size:14px; font-weight:700; margin-top:2px; }
-.gesture-badge.active .value { color:var(--accent2); }
-
-/* Scan lines VR effect */
-#scan-lines {
-  position:fixed; inset:0;
-  background:repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.08) 2px,
-    rgba(0,0,0,0.08) 4px
-  );
-  pointer-events:none;
-  z-index:49;
-}
-
-/* Vignette per eye */
-.vignette {
-  position:absolute; inset:0;
-  background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
-  pointer-events:none;
-  z-index:5;
-}
-
-/* Setup overlay */
+/* ── Setup screen ── */
 #setup {
-  position:fixed; inset:0;
-  background:var(--bg);
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  gap:16px; z-index:100;
-  padding:24px;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; z-index: 100; padding: 24px;
 }
-#setup h1 { font-size:22px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-#setup p { font-size:13px; color:var(--muted); text-align:center; line-height:1.6; max-width:300px; }
-.setup-field { display:flex; flex-direction:column; gap:6px; width:100%; max-width:280px; }
-.setup-field label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+#setup h1 {
+  font-size: 24px; font-weight: 900;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+#setup p { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; max-width: 300px; }
+.setup-field { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 280px; }
+.setup-field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .setup-field input {
-  background:#0d1422; border:1px solid #1e293b; border-radius:8px;
-  color:var(--text); font-size:16px; padding:10px 14px;
-  width:100%;
+  background: #0d1422; border: 1px solid #1e293b; border-radius: 8px;
+  color: var(--text); font-size: 16px; padding: 10px 14px; width: 100%;
 }
-.setup-field input:focus { outline:none; border-color:var(--accent); }
+.setup-field input:focus { outline: none; border-color: var(--accent); }
+#cam-status {
+  font-size: 12px; padding: 8px 14px; border-radius: 8px;
+  background: #0d1422; border: 1px solid #1e293b;
+  color: var(--muted); width: 100%; max-width: 280px; text-align: center;
+}
+#cam-status.ok  { border-color: var(--ok);  color: var(--ok); }
+#cam-status.err { border-color: var(--err); color: var(--err); }
 #start-btn {
-  background:linear-gradient(135deg,var(--accent),#6d28d9);
-  border:none; border-radius:10px; color:#fff;
-  font-size:16px; font-weight:700;
-  padding:14px 36px; cursor:pointer;
-  box-shadow:0 0 24px rgba(124,58,237,0.4);
-  width:100%; max-width:280px;
+  background: linear-gradient(135deg, var(--accent), #6d28d9);
+  border: none; border-radius: 10px; color: #fff;
+  font-size: 16px; font-weight: 700;
+  padding: 14px 36px; cursor: pointer;
+  box-shadow: 0 0 24px rgba(124,58,237,0.4);
+  width: 100%; max-width: 280px;
+  transition: opacity .2s;
 }
+#start-btn:disabled { opacity: .4; cursor: not-allowed; }
 .tip-box {
-  background:#0d1422; border:1px solid #1e293b; border-radius:8px;
-  padding:12px 16px; font-size:11px; color:var(--muted);
-  line-height:1.7; max-width:300px;
+  background: #0d1422; border: 1px solid #1e293b; border-radius: 8px;
+  padding: 12px 16px; font-size: 11px; color: var(--muted);
+  line-height: 1.7; max-width: 300px; width: 100%;
 }
-.tip-box strong { color:var(--accent2); }
+.tip-box strong { color: var(--accent2); }
+
+/* ── Main tracking view ── */
+#main { display: none; flex-direction: column; height: 100dvh; }
+
+/* Camera feed with skeleton overlay */
+#cam-wrap {
+  position: relative;
+  flex: 1;
+  background: #000;
+  overflow: hidden;
+}
+#video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror */
+}
+#overlay-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* Loading indicator */
+#loading {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; background: rgba(5,8,15,0.85);
+  font-size: 13px; color: var(--muted);
+  z-index: 10;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #1e293b;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Status bar */
+#status-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: rgba(5,8,15,0.95);
+  border-top: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.dot.ok   { background: var(--ok);   box-shadow: 0 0 6px var(--ok); }
+.dot.err  { background: var(--err);  box-shadow: 0 0 6px var(--err); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+#conn-label { font-size: 11px; color: var(--muted); flex: 1; }
+#reconn-btn {
+  background: var(--accent); border: none; border-radius: 5px;
+  color: #fff; font-size: 11px; font-weight: 600;
+  padding: 4px 10px; cursor: pointer; display: none;
+}
+
+/* Stats panel */
+#stats-panel {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: #1e293b;
+  border-top: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+.stat-cell {
+  background: var(--bg);
+  padding: 8px 10px; text-align: center;
+}
+.stat-cell .slabel { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat-cell .sval   { font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--accent2); }
+.stat-cell.active .sval { color: var(--ok); }
+
+/* Confidence bars */
+#conf-row {
+  display: flex; gap: 8px; padding: 6px 12px;
+  background: rgba(5,8,15,0.95);
+  border-top: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+.conf-item { flex: 1; }
+.conf-item .clabel { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+.conf-bar { height: 3px; background: #1e293b; border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.conf-fill { height: 100%; background: var(--accent2); border-radius: 2px; width: 0%; transition: width .1s; }
 </style>
 </head>
 <body>
 
-<!-- Setup screen -->
+<!-- ── Setup ── -->
 <div id="setup">
-  <h1>VRHand</h1>
-  <p>Hand tracking desde tu teléfono → VRChat en PC vía OSC</p>
+  <h1>VRHand Pose</h1>
+  <p>Coloca el teléfono en una base enfocando tu medio cuerpo. Detecta brazos, hombros y torso → VRChat OSC.</p>
+
+  <div id="cam-status">Solicitando cámara...</div>
 
   <div class="setup-field">
     <label>IP de tu PC (misma red WiFi)</label>
-    <input type="text" id="pc-ip" placeholder="192.168.1.x" inputmode="decimal"
-           value="">
+    <input type="text" id="pc-ip" placeholder="192.168.1.x" inputmode="decimal">
   </div>
 
   <div class="tip-box">
-    <strong>Cómo encontrar tu IP:</strong><br>
-    Windows: <code>ipconfig</code> → IPv4<br>
-    El bridge debe estar corriendo:<br>
-    <code>node bridge.js</code>
+    <strong>Posición ideal del teléfono:</strong><br>
+    • En una base/soporte, ~1 m de distancia<br>
+    • Encuadra desde la cabeza hasta la cadera<br>
+    • Buena iluminación frontal<br><br>
+    <strong>En la PC:</strong> <code>node bridge-pose.js</code>
   </div>
 
-  <button id="start-btn" onclick="startSession()">Iniciar</button>
+  <button id="start-btn" disabled onclick="startSession()">Iniciar tracking</button>
 </div>
 
-<!-- VR Layer — two eyes -->
-<div id="vr-layer" style="display:none">
-  <div class="eye" id="eye-left">
-    <canvas class="eye-canvas" id="canvas-left"></canvas>
-    <div class="vignette"></div>
+<!-- ── Main view ── -->
+<div id="main">
+  <div id="cam-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay-canvas"></canvas>
+    <div id="loading">
+      <div class="spinner"></div>
+      <span>Cargando modelo de pose...</span>
+    </div>
   </div>
-  <div class="divider"></div>
-  <div class="eye" id="eye-right">
-    <canvas class="eye-canvas" id="canvas-right"></canvas>
-    <div class="vignette"></div>
+
+  <!-- Confidence bars -->
+  <div id="conf-row">
+    <div class="conf-item">
+      <div class="clabel">L. Muñeca</div>
+      <div class="conf-bar"><div class="conf-fill" id="conf-lw"></div></div>
+    </div>
+    <div class="conf-item">
+      <div class="clabel">Torso</div>
+      <div class="conf-bar"><div class="conf-fill" id="conf-torso"></div></div>
+    </div>
+    <div class="conf-item">
+      <div class="clabel">R. Muñeca</div>
+      <div class="conf-bar"><div class="conf-fill" id="conf-rw"></div></div>
+    </div>
   </div>
-</div>
 
-<div id="scan-lines"></div>
+  <!-- Stats -->
+  <div id="stats-panel">
+    <div class="stat-cell" id="stat-lshoulder">
+      <div class="slabel">Hombro Izq</div>
+      <div class="sval" id="val-lshoulder">—</div>
+    </div>
+    <div class="stat-cell" id="stat-torso">
+      <div class="slabel">Torso inclin.</div>
+      <div class="sval" id="val-torso">0°</div>
+    </div>
+    <div class="stat-cell" id="stat-rshoulder">
+      <div class="slabel">Hombro Der</div>
+      <div class="sval" id="val-rshoulder">—</div>
+    </div>
+    <div class="stat-cell" id="stat-lelbow">
+      <div class="slabel">Codo Izq</div>
+      <div class="sval" id="val-lelbow">0°</div>
+    </div>
+    <div class="stat-cell" id="stat-fps">
+      <div class="slabel">FPS</div>
+      <div class="sval" id="val-fps">0</div>
+    </div>
+    <div class="stat-cell" id="stat-relbow">
+      <div class="slabel">Codo Der</div>
+      <div class="sval" id="val-relbow">0°</div>
+    </div>
+  </div>
 
-<!-- Hidden ML elements -->
-<video id="video" autoplay playsinline muted></video>
-<canvas id="track-canvas"></canvas>
-
-<!-- HUD -->
-<div id="hud" style="display:none">
-  <div id="conn-bar">
+  <!-- Status bar -->
+  <div id="status-bar">
     <div class="dot" id="ws-dot"></div>
     <span id="conn-label">Conectando...</span>
-    <input id="ip-input" type="text" style="display:none">
-    <button id="conn-btn" style="display:none" onclick="reconnect()">Reconectar</button>
-  </div>
-
-  <div id="gesture-hud">
-    <div class="gesture-badge" id="badge-left">
-      <div class="label">Mano Izq</div>
-      <div class="value" id="gesture-left">—</div>
-    </div>
-    <div class="gesture-badge" id="badge-right">
-      <div class="label">Mano Der</div>
-      <div class="value" id="gesture-right">—</div>
-    </div>
+    <button id="reconn-btn" onclick="reconnect()">Reconectar</button>
   </div>
 </div>
 
-<!-- MediaPipe -->
+<!-- MediaPipe Pose -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
 let ws = null;
 let pcIp = '';
-let animFrame = null;
-let lastHandData = null;
-let cameraStream = null; // reuse stream
+let cameraStream = null;
+let lastPoseData = null;
+let frameCount = 0, fpsTimer = 0, currentFps = 0;
 
-// ─── Request camera permission on load ───────────────────────────────────────
+// MediaPipe landmark indices
+const LM = {
+  NOSE: 0,
+  L_SHOULDER: 11, R_SHOULDER: 12,
+  L_ELBOW: 13,    R_ELBOW: 14,
+  L_WRIST: 15,    R_WRIST: 16,
+  L_HIP: 23,      R_HIP: 24,
+};
+
+// Skeleton connections to draw (upper body only)
+const CONNECTIONS = [
+  [LM.L_SHOULDER, LM.R_SHOULDER],
+  [LM.L_SHOULDER, LM.L_ELBOW],
+  [LM.L_ELBOW,    LM.L_WRIST],
+  [LM.R_SHOULDER, LM.R_ELBOW],
+  [LM.R_ELBOW,    LM.R_WRIST],
+  [LM.L_SHOULDER, LM.L_HIP],
+  [LM.R_SHOULDER, LM.R_HIP],
+  [LM.L_HIP,      LM.R_HIP],
+];
+
+const JOINT_COLORS = {
+  bone: '#06b6d4',
+  joint: '#7c3aed',
+  highlight: '#f0abfc', // wrists/hands
+};
+
+// ─── Camera permission on load ────────────────────────────────────────────────
 async function requestCameraEarly() {
+  const status = document.getElementById('cam-status');
   const startBtn = document.getElementById('start-btn');
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
     });
-    document.getElementById('video').srcObject = cameraStream;
-    startBtn.textContent = '✅ Cámara lista — Iniciar';
-    startBtn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+    status.textContent = '✅ Cámara lista';
+    status.className = 'ok';
+    startBtn.disabled = false;
+    startBtn.textContent = 'Iniciar tracking';
   } catch(e) {
-    startBtn.textContent = '⚠️ Permitir cámara primero';
-    startBtn.style.background = 'linear-gradient(135deg,#ef4444,#b91c1c)';
-    startBtn.onclick = () => requestCameraEarly();
+    status.textContent = '⚠️ Sin acceso a cámara — toca para reintentar';
+    status.className = 'err';
+    startBtn.disabled = true;
+    status.style.cursor = 'pointer';
+    status.onclick = requestCameraEarly;
   }
 }
 window.addEventListener('DOMContentLoaded', requestCameraEarly);
 
-// ─── Gesture names (matches bridge.js) ───────────────────────────────────────
-const GESTURE_NAMES = ['Neutral','Puño','Abierta','Apuntar','Paz','Rock','Pistola','Pulgar👍'];
-
-// ─── VR stereo renderer ──────────────────────────────────────────────────────
-const canvases = {
-  left:  document.getElementById('canvas-left'),
-  right: document.getElementById('canvas-right'),
-};
-const ctxs = {
-  left:  canvases.left.getContext('2d'),
-  right: canvases.right.getContext('2d'),
-};
-
-// Hand skeleton colors
-const HAND_COLORS = {
-  joint: '#7c3aed',
-  bone:  '#06b6d4',
-  tip:   '#f0abfc',
-};
-
-// MediaPipe hand connections
-const HAND_CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],       // thumb
-  [0,5],[5,6],[6,7],[7,8],       // index
-  [0,9],[9,10],[10,11],[11,12],  // middle
-  [0,13],[13,14],[14,15],[15,16],// ring
-  [0,17],[17,18],[18,19],[19,20],// pinky
-  [5,9],[9,13],[13,17],          // palm
-];
-
-function resizeCanvases() {
-  ['left','right'].forEach(eye => {
-    const el = document.getElementById(`eye-${eye}`);
-    canvases[eye].width  = el.clientWidth;
-    canvases[eye].height = el.clientHeight;
-  });
+// ─── Math helpers ─────────────────────────────────────────────────────────────
+function angleBetween(a, b, c) {
+  // Angle at joint b between segments a-b and b-c
+  const ab = { x: a.x - b.x, y: a.y - b.y };
+  const cb = { x: c.x - b.x, y: c.y - b.y };
+  const dot = ab.x*cb.x + ab.y*cb.y;
+  const mag = Math.sqrt(ab.x**2+ab.y**2) * Math.sqrt(cb.x**2+cb.y**2);
+  if (mag === 0) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, dot/mag))) * 180 / Math.PI;
 }
 
-function drawHandSkeleton(ctx, landmarks, W, H, alpha=1) {
+function normalize(val, min, max) {
+  return Math.max(0, Math.min(1, (val - min) / (max - min)));
+}
+
+// ─── Pose analysis ────────────────────────────────────────────────────────────
+function analyzePose(lm) {
+  const get = i => lm[i]; // shorthand
+
+  // Elbow angles (0°=straight arm, 180°=fully bent — we flip to intuitive)
+  const leftElbow  = angleBetween(get(LM.L_SHOULDER), get(LM.L_ELBOW), get(LM.L_WRIST));
+  const rightElbow = angleBetween(get(LM.R_SHOULDER), get(LM.R_ELBOW), get(LM.R_WRIST));
+
+  // Shoulder raise: how high is the shoulder relative to hip (y axis, 0=top)
+  const lShoulderRaise = normalize(get(LM.L_HIP).y - get(LM.L_SHOULDER).y, 0.05, 0.35);
+  const rShoulderRaise = normalize(get(LM.R_HIP).y - get(LM.R_SHOULDER).y, 0.05, 0.35);
+
+  // Arm raise: wrist height relative to shoulder
+  const lArmRaise = normalize(get(LM.L_SHOULDER).y - get(LM.L_WRIST).y, -0.1, 0.3);
+  const rArmRaise = normalize(get(LM.R_SHOULDER).y - get(LM.R_WRIST).y, -0.1, 0.3);
+
+  // Arm extension: wrist distance from body center
+  const centerX = (get(LM.L_SHOULDER).x + get(LM.R_SHOULDER).x) / 2;
+  const lArmExt = normalize(Math.abs(get(LM.L_WRIST).x - centerX), 0.05, 0.4);
+  const rArmExt = normalize(Math.abs(get(LM.R_WRIST).x - centerX), 0.05, 0.4);
+
+  // Torso tilt: shoulder midpoint vs hip midpoint horizontal offset
+  const shoulderMidX = (get(LM.L_SHOULDER).x + get(LM.R_SHOULDER).x) / 2;
+  const hipMidX      = (get(LM.L_HIP).x + get(LM.R_HIP).x) / 2;
+  const torsoTilt    = Math.round((shoulderMidX - hipMidX) * 200); // degrees-ish
+
+  // Wrist positions (normalized 0-1, x flipped for mirror)
+  const lWrist = { x: 1 - get(LM.L_WRIST).x, y: get(LM.L_WRIST).y };
+  const rWrist = { x: 1 - get(LM.R_WRIST).x, y: get(LM.R_WRIST).y };
+
+  // Visibility scores for key joints
+  const visLWrist = get(LM.L_WRIST).visibility || 0;
+  const visRWrist = get(LM.R_WRIST).visibility || 0;
+  const visTorso  = Math.min(
+    get(LM.L_SHOULDER).visibility || 0,
+    get(LM.R_SHOULDER).visibility || 0,
+    get(LM.L_HIP).visibility || 0,
+    get(LM.R_HIP).visibility || 0
+  );
+
+  return {
+    leftElbow:  Math.round(leftElbow),
+    rightElbow: Math.round(rightElbow),
+    lShoulderRaise, rShoulderRaise,
+    lArmRaise, rArmRaise,
+    lArmExt, rArmExt,
+    torsoTilt,
+    lWrist, rWrist,
+    visLWrist, visRWrist, visTorso,
+  };
+}
+
+// ─── Skeleton renderer ────────────────────────────────────────────────────────
+const canvas = document.getElementById('overlay-canvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = document.getElementById('cam-wrap');
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+
+function drawSkeleton(landmarks) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
   if (!landmarks) return;
 
+  // Map landmark coords (0-1) to canvas, mirroring x to match video
+  const pt = i => ({
+    x: (1 - landmarks[i].x) * W,
+    y: landmarks[i].y * H,
+    v: landmarks[i].visibility || 0,
+  });
+
   // Bones
-  ctx.globalAlpha = alpha * 0.8;
-  HAND_CONNECTIONS.forEach(([a,b]) => {
-    const p1 = landmarks[a], p2 = landmarks[b];
+  CONNECTIONS.forEach(([a, b]) => {
+    const pa = pt(a), pb = pt(b);
+    const alpha = Math.min(pa.v, pb.v);
+    if (alpha < 0.3) return;
+    ctx.globalAlpha = alpha * 0.85;
     ctx.beginPath();
-    ctx.moveTo(p1.x * W, p1.y * H);
-    ctx.lineTo(p2.x * W, p2.y * H);
-    ctx.strokeStyle = HAND_COLORS.bone;
-    ctx.lineWidth = 2;
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    ctx.strokeStyle = JOINT_COLORS.bone;
+    ctx.lineWidth = 3;
     ctx.stroke();
   });
 
   // Joints
-  landmarks.forEach((p, i) => {
-    ctx.globalAlpha = alpha;
+  const upperBodyIdx = [
+    LM.NOSE, LM.L_SHOULDER, LM.R_SHOULDER,
+    LM.L_ELBOW, LM.R_ELBOW,
+    LM.L_WRIST, LM.R_WRIST,
+    LM.L_HIP, LM.R_HIP,
+  ];
+  upperBodyIdx.forEach(i => {
+    const p = pt(i);
+    if (p.v < 0.3) return;
+    const isWrist = i === LM.L_WRIST || i === LM.R_WRIST;
+    ctx.globalAlpha = p.v;
     ctx.beginPath();
-    const isTip = [4,8,12,16,20].includes(i);
-    ctx.arc(p.x * W, p.y * H, isTip ? 5 : 3, 0, Math.PI*2);
-    ctx.fillStyle = isTip ? HAND_COLORS.tip : HAND_COLORS.joint;
+    ctx.arc(p.x, p.y, isWrist ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = isWrist ? JOINT_COLORS.highlight : JOINT_COLORS.joint;
     ctx.fill();
   });
+
   ctx.globalAlpha = 1;
 }
 
-function renderVR() {
-  ['left','right'].forEach(eye => {
-    const ctx = ctxs[eye];
-    const W = canvases[eye].width;
-    const H = canvases[eye].height;
+// ─── HUD updates ──────────────────────────────────────────────────────────────
+function updateHUD(analysis) {
+  document.getElementById('val-lelbow').textContent     = analysis.leftElbow + '°';
+  document.getElementById('val-relbow').textContent     = analysis.rightElbow + '°';
+  document.getElementById('val-torso').textContent      = (analysis.torsoTilt > 0 ? '+' : '') + analysis.torsoTilt + '°';
+  document.getElementById('val-lshoulder').textContent  = Math.round(analysis.lArmRaise * 100) + '%';
+  document.getElementById('val-rshoulder').textContent  = Math.round(analysis.rArmRaise * 100) + '%';
+  document.getElementById('val-fps').textContent        = currentFps;
 
-    // Black VR background
-    ctx.fillStyle = '#000008';
-    ctx.fillRect(0, 0, W, H);
-
-    // Grid floor (perspective)
-    ctx.strokeStyle = 'rgba(30,41,59,0.6)';
-    ctx.lineWidth = 0.5;
-    const GRID = 8;
-    const ey = eye === 'left' ? -0.015 : 0.015; // slight IPD offset
-    for (let i = 0; i <= GRID; i++) {
-      const x = (i / GRID) * W;
-      ctx.beginPath(); ctx.moveTo(x, H*0.5); ctx.lineTo(x + ey*W*2, H);
-      ctx.stroke();
-    }
-    for (let j = 0; j <= 6; j++) {
-      const y = H*0.5 + j * (H*0.5/6);
-      ctx.beginPath(); ctx.moveTo(0 + ey*W*j*0.3, y); ctx.lineTo(W + ey*W*j*0.3, y);
-      ctx.stroke();
-    }
-
-    // Subtle horizon glow
-    const grad = ctx.createLinearGradient(0, H*0.4, 0, H*0.6);
-    grad.addColorStop(0, 'rgba(124,58,237,0.0)');
-    grad.addColorStop(0.5, 'rgba(124,58,237,0.07)');
-    grad.addColorStop(1, 'rgba(6,182,212,0.0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, H*0.4, W, H*0.2);
-
-    // Hands (mirrored for VR perspective)
-    if (lastHandData) {
-      if (lastHandData.leftHand) {
-        const mirrored = lastHandData.leftHand.map(p => ({...p, x: 1 - p.x}));
-        drawHandSkeleton(ctx, mirrored, W, H);
-      }
-      if (lastHandData.rightHand) {
-        const mirrored = lastHandData.rightHand.map(p => ({...p, x: 1 - p.x}));
-        drawHandSkeleton(ctx, mirrored, W, H);
-      }
-    }
-
-    // IPD center line hint (faint)
-    ctx.globalAlpha = 0.08;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(W/2 - 0.5, 0, 1, H);
-    ctx.globalAlpha = 1;
-  });
-
-  animFrame = requestAnimationFrame(renderVR);
+  // Confidence bars
+  document.getElementById('conf-lw').style.width    = Math.round(analysis.visLWrist * 100) + '%';
+  document.getElementById('conf-rw').style.width    = Math.round(analysis.visRWrist * 100) + '%';
+  document.getElementById('conf-torso').style.width = Math.round(analysis.visTorso * 100) + '%';
 }
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 function connectWS() {
   const url = `ws://${pcIp}:8765`;
   setConnStatus('warn', `Conectando a ${url}...`);
-
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     setConnStatus('ok', `Conectado → ${pcIp}`);
-    document.getElementById('conn-btn').style.display = 'none';
+    document.getElementById('reconn-btn').style.display = 'none';
   };
-
   ws.onerror = () => {
     setConnStatus('err', 'Error de conexión');
-    document.getElementById('ip-input').style.display = 'block';
-    document.getElementById('conn-btn').style.display = 'block';
+    document.getElementById('reconn-btn').style.display = 'block';
   };
-
   ws.onclose = () => {
     setConnStatus('err', 'Desconectado');
-    document.getElementById('ip-input').style.display = 'block';
-    document.getElementById('conn-btn').style.display = 'block';
-    setTimeout(connectWS, 3000); // auto-reconnect
+    document.getElementById('reconn-btn').style.display = 'block';
+    setTimeout(connectWS, 3000);
   };
 }
 
 function reconnect() {
-  const newIp = document.getElementById('ip-input').value.trim();
-  if (newIp) pcIp = newIp;
   if (ws) ws.close();
   connectWS();
 }
 
-function sendHandData(data) {
+function sendPoseData(data) {
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'hands', ...data }));
+    ws.send(JSON.stringify({ type: 'pose', ...data }));
   }
 }
 
 function setConnStatus(state, text) {
-  const dot = document.getElementById('ws-dot');
-  dot.className = `dot ${state}`;
+  document.getElementById('ws-dot').className = `dot ${state}`;
   document.getElementById('conn-label').textContent = text;
 }
 
-// ─── MediaPipe Hands ──────────────────────────────────────────────────────────
-function startHandTracking() {
+// ─── MediaPipe Pose ───────────────────────────────────────────────────────────
+function startPoseTracking() {
   const video = document.getElementById('video');
 
-  const hands = new Hands({
-    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  const pose = new Pose({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
   });
 
-  hands.setOptions({
-    maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.65,
-    minTrackingConfidence: 0.55,
+  pose.setOptions({
+    modelComplexity: 1,          // 0=lite, 1=full, 2=heavy — 1 is best balance on mobile
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    smoothSegmentation: false,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
   });
 
-  hands.onResults((results) => {
-    let leftHand = null, rightHand = null;
+  pose.onResults((results) => {
+    const lm = results.poseLandmarks;
 
-    if (results.multiHandLandmarks && results.multiHandedness) {
-      results.multiHandedness.forEach((hand, i) => {
-        // MediaPipe label: "Left"/"Right" are flipped (front camera)
-        if (hand.label === 'Right') leftHand  = results.multiHandLandmarks[i];
-        else                         rightHand = results.multiHandLandmarks[i];
-      });
+    // Hide loading once first result arrives
+    document.getElementById('loading').style.display = 'none';
+
+    if (!lm) {
+      drawSkeleton(null);
+      return;
     }
 
-    lastHandData = { leftHand, rightHand };
-    sendHandData({ leftHand, rightHand });
-    updateGestureHUD(leftHand, rightHand);
+    drawSkeleton(lm);
+
+    const analysis = analyzePose(lm);
+    lastPoseData = analysis;
+    updateHUD(analysis);
+    sendPoseData(analysis);
+
+    // FPS counter
+    frameCount++;
+    const now = performance.now();
+    if (now - fpsTimer >= 1000) {
+      currentFps = frameCount;
+      frameCount = 0;
+      fpsTimer = now;
+    }
   });
 
   const mpCam = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 320, height: 240
+    onFrame: async () => { await pose.send({ image: video }); },
+    width: 640, height: 480,
   });
   mpCam.start();
-}
-
-// ─── Gesture detection (client-side, for HUD display only) ───────────────────
-function dist3d(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);}
-function isExtended(lm,tip,mcp){return dist3d(lm[tip],lm[0])>dist3d(lm[mcp],lm[0])*1.15;}
-
-function guessGesture(lm) {
-  if (!lm) return '—';
-  const th = Math.abs(lm[4].x-lm[0].x) > Math.abs(lm[3].x-lm[0].x)*1.1;
-  const ix = isExtended(lm,8,5), mx = isExtended(lm,12,9);
-  const rx = isExtended(lm,16,13), px = isExtended(lm,20,17);
-  const n = [ix,mx,rx,px].filter(Boolean).length;
-  if(n===0&&!th) return '✊ Puño';
-  if(n===4)      return '🖐 Abierta';
-  if(th&&n===0)  return '👍 Pulgar';
-  if(ix&&!mx)    return '👆 Apuntar';
-  if(ix&&mx&&!rx&&!px) return '✌️ Paz';
-  if(ix&&!mx&&!rx&&px) return '🤘 Rock';
-  return '· · ·';
-}
-
-function updateGestureHUD(left, right) {
-  const gl = guessGesture(left);
-  const gr = guessGesture(right);
-  document.getElementById('gesture-left').textContent  = gl;
-  document.getElementById('gesture-right').textContent = gr;
-  document.getElementById('badge-left').classList.toggle('active',  left  !== null);
-  document.getElementById('badge-right').classList.toggle('active', right !== null);
 }
 
 // ─── Session start ────────────────────────────────────────────────────────────
@@ -504,36 +542,22 @@ async function startSession() {
   pcIp = document.getElementById('pc-ip').value.trim();
   if (!pcIp) { alert('Ingresa la IP de tu PC'); return; }
 
-  // Use already-granted stream, or request if not yet granted
-  if (!cameraStream) {
-    try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }
-      });
-      document.getElementById('video').srcObject = cameraStream;
-    } catch(e) {
-      alert('No se pudo acceder a la cámara.\n\nEn Chrome: toca el ícono 🔒 en la barra de dirección → Permisos de cámara → Permitir → recarga la página.');
-      return;
-    }
-  }
+  // Attach stream to video element
+  const video = document.getElementById('video');
+  video.srcObject = cameraStream;
 
-  // Show VR view
+  // Switch screens
   document.getElementById('setup').style.display = 'none';
-  document.getElementById('vr-layer').style.display = 'flex';
-  document.getElementById('hud').style.display = 'block';
+  document.getElementById('main').style.display  = 'flex';
 
-  // Init
-  resizeCanvases();
-  window.addEventListener('resize', resizeCanvases);
-  renderVR();
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
   connectWS();
-  startHandTracking();
-  
-  // Request fullscreen for VR immersion
-  try {
-    document.documentElement.requestFullscreen?.();
-    screen.orientation?.lock?.('landscape');
-  } catch(e) {}
+  startPoseTracking();
+
+  // Optional: request fullscreen
+  try { document.documentElement.requestFullscreen?.(); } catch(e) {}
 }
 </script>
 </body>
